@@ -1,0 +1,57 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  serverless-financial-dashboard
+
+  Sample SAM Template for serverless-financial-dashboard
+
+Globals:
+  Function:
+    Timeout: 3
+
+Resources:
+  InvestmentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: investment/
+      Handler: app.lambdaHandler
+      Runtime: nodejs20.x
+      Architectures:
+        - x86_64
+      Events:
+        GetAllInvestments:
+          Type: Api
+          Properties:
+            Path: /investment
+            Method: get
+        GetInvestmentById:
+          Type: Api
+          Properties:
+            Path: /investment/{id}
+            Method: get
+        CreateInvestment:
+          Type: Api
+          Properties:
+            Path: /investment
+            Method: post
+        UpdateInvestmentById:
+          Type: Api
+          Properties:
+            Path: /investment/{id}
+            Method: put
+        DeleteInvestmentById:
+          Type: Api
+          Properties:
+            Path: /investment/{id}
+            Method: delete
+
+Outputs:
+  InvestmentApi:
+    Description: "API Gateway endpoint URL for investment-related operations"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/investment/"
+  InvestmentFunction:
+    Description: "Lambda Function ARN for investment-related operations"
+    Value: !GetAtt InvestmentFunction.Arn
+  InvestmentFunctionIamRole:
+    Description: "Implicit IAM Role created for InvestmentFunction"
+    Value: !GetAtt InvestmentFunctionRole.Arn
