@@ -18,20 +18,17 @@
  *
  * @returns {Object} response - API Gateway Lambda Proxy Output Format
  */
+
+import dbHelper from "./dbHelper.js";
+
 export const lambdaHandler = async (event, context) => {
   const { httpMethod, path, body } = event;
   let response;
 
-  // 模拟的投资数据存储
-  const investments = [
-    { id: 1, name: "Investment A", amount: 1000 },
-    { id: 2, name: "Investment B", amount: 2000 },
-  ];
-
   try {
     switch (httpMethod) {
       case "GET":
-        response = handleGetRequest(path, investments);
+        response = handleGetRequest(event);
         break;
       case "POST":
         response = handlePostRequest(body);
@@ -61,12 +58,14 @@ export const lambdaHandler = async (event, context) => {
 };
 
 // GET 请求处理
-const handleGetRequest = (event, investments) => {
+const handleGetRequest = async (event) => {
   const path = event.path || ""; // 当前请求路径
   console.log("GET Request for Path: ", path);
 
   const queryParams = event.queryStringParameters || {};
   console.log("GET Request Query Parameters: ", queryParams);
+
+  const investments = await dbHelper.query("SELECT * FROM investment");
 
   // 如果没有查询参数，返回所有数据
   if (Object.keys(queryParams).length === 0) {
@@ -91,11 +90,11 @@ const handleGetRequest = (event, investments) => {
   if (idMatch) {
     const investment = investments.find((inv) => inv.id === parseInt(idMatch[1]));
     return investment
-      ? { statusCode: 200, body: JSON.stringify({ data: investment }) }
-      : { statusCode: 404, body: JSON.stringify({ message: "Investment Not Found" }) };
+      ? {statusCode: 200, body: JSON.stringify({data: investment})}
+      : {statusCode: 404, body: JSON.stringify({message: "Investment Not Found"})};
   }
 
-  return { statusCode: 400, body: JSON.stringify({ message: "Invalid GET Path" }) };
+  return {statusCode: 400, body: JSON.stringify({message: "Invalid GET Path"})};
 };
 
 // POST 请求处理（新增投资数据）
