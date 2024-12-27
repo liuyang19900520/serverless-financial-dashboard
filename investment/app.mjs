@@ -20,9 +20,11 @@
  */
 
 import dbHelper from "./dbHelper.js";
+import responseHelper from "./responseHelper.js";
+
 
 export const lambdaHandler = async (event, context) => {
-  const { httpMethod, path, body } = event;
+  const {httpMethod, path, body} = event;
   let response;
 
   try {
@@ -40,18 +42,12 @@ export const lambdaHandler = async (event, context) => {
         response = handleDeleteRequest(path);
         break;
       default:
-        response = {
-          statusCode: 405,
-          body: JSON.stringify({ message: "Method Not Allowed" }),
-        };
+        response = responseHelper.createResponse('0', 405, "Method Not Allowed", null, null);
     }
   } catch (error) {
     // 错误捕获
     console.error("Error: ", error);
-    response = {
-      statusCode: 500,
-      body: JSON.stringify({ message: "Internal Server Error" }),
-    };
+    response = responseHelper.createResponse('1', 500, "Internal Server Error", null, error);
   }
 
   return response;
@@ -60,84 +56,131 @@ export const lambdaHandler = async (event, context) => {
 // GET 请求处理
 const handleGetRequest = async (event) => {
   const path = event.path || ""; // 当前请求路径
-  console.log("GET Request for Path: ", path);
-
-  const queryParams = event.queryStringParameters || {};
-  console.log("GET Request Query Parameters: ", queryParams);
-
-  const investments = await dbHelper.query("SELECT * FROM investment");
-
-  // 如果没有查询参数，返回所有数据
-  if (Object.keys(queryParams).length === 0) {
-    return {
-      statusCode: 200,
-      body: JSON.stringify({
-        data: investments,
-        message: "Query parameters not provided. Returning all investments.",
-      }),
-    };
-  }
-  return {
-    statusCode: 200,
-    body: JSON.stringify({
-      queryParams: queryParams, // 返回请求中可能的查询参数
-      data: investments,       // 模拟返回传递的投资数据
-    }),
-  };
 
   // 如果路径是 "/investment/{id}"，返回特定投资数据
   const idMatch = path.match(/^\/investment\/(\d+)$/);
   if (idMatch) {
-    const investment = investments.find((inv) => inv.id === parseInt(idMatch[1]));
-    return investment
-      ? {statusCode: 200, body: JSON.stringify({data: investment})}
-      : {statusCode: 404, body: JSON.stringify({message: "Investment Not Found"})};
-  }
+    const investmentId = parseInt(idMatch[1]);
+    const investment = await dbHelper.queryOne("SELECT * FROM investment WHERE id = $1", [investmentId]);
+    return responseHelper.createResponse('0', 200, "OK", investment, null);
+  } else {
+    const queryParams = event.queryStringParameters || {};
+    console.log("GET Request Query Parameters: ", queryParams);
 
-  return {statusCode: 400, body: JSON.stringify({message: "Invalid GET Path"})};
-};
+    let sortBy = queryParams.sort_by || ""; // 获取 sort_by 参数
+    let orderBy = [];
+
+// 如果 sort_by 参数不为空
+    if (sortBy) {
+      const sortFields = sortBy.split(","); // 按逗号分割多个排序字段
+
+      for (const field of sortFields) {
+        if (field.startsWith("-")) {
+          // 如果字段以 '-' 开头，降序
+          orderBy.push(`${field.substring(1)} DESC`);
+        } else if (field.startsWith("+")) {
+          // 如果字段以 '+' 开头，升序
+          orderBy.push(`${field.substring(1)} ASC`);
+        } else {
+          // 默认没有符号，也作为升序处理
+          orderBy.push(`${field} ASC`);
+        }
+      }
+    }
+
+    let query = "SELECT * FROM investment";
+    let conditions = [];
+    let parameters = [];
+    let index = 1;
+    for (const [key, value] of Object.entries(queryParams)) {
+      if (value && key !== 'sort_by') { // 检查参数是否有值
+        conditions.push(`${key} = $${index}`); // 添加条件
+        parameters.push(value); // 添加参数值
+        index++; // 增加占位符索引
+      }
+    }
+
+    // 如果有条件，添加 WHERE 子句
+    if (conditions.length > 0) {
+      query += " WHERE " + conditions.join(" AND ");
+    }
+    // 构建 ORDER BY 子句
+    let orderByClause = "";
+    if (orderBy.length > 0) {
+      query += " ORDER BY " + orderBy.join(", ");
+    }
+
+    const investments = await dbHelper.query(query, parameters);
+    return responseHelper.createResponse('0', 200, "OK", investments, null);
+  }
+  return responseHelper.createResponse('1', 400, "Invalid request path", null, null);
+}
 
 // POST 请求处理（新增投资数据）
-const handlePostRequest = (body) => {
+const handlePostRequest = async (body) => {
   console.log("POST Request with Body: ", body);
 
   const newInvestment = JSON.parse(body); // 将 JSON 反序列化为对象
   console.log("New Investment Added: ", newInvestment);
 
-  return {
-    statusCode: 201,
-    body: JSON.stringify({ message: "Investment Created", data: newInvestment }),
-  };
+  const sql = `
+    INSERT INTO investment (year, type1, type2, target, price, currency)
+    VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;`;
+
+  const {year, type1, type2, target, price, currency} = newInvestment;
+  const params = [year, type1, type2, target, price, currency];
+  const result = await dbHelper.insert(sql, params);
+
+  console.log("New Investment Inserted: ", result);
+  return responseHelper.createResponse('0', 201, "OK", result, null);
+
 };
 
 // PUT 请求处理（更新投资数据）
-const handlePutRequest = (path, body) => {
+const handlePutRequest = async (path, body) => {
   console.log("PUT Request for Path: ", path, " and Body: ", body);
 
   const idMatch = path.match(/^\/investment\/(\d+)$/);
   if (!idMatch) {
-    return { statusCode: 400, body: JSON.stringify({ message: "Invalid PUT Path" }) };
+    return responseHelper.createResponse('1', 400, "Invalid PUT Path", null, null);
   }
 
   const updatedInvestment = JSON.parse(body); // 将 JSON 反序列化为对象
-  console.log(`Updating Investment with ID ${idMatch[1]}: `, updatedInvestment);
+  const {year, type1, type2, target, price, currency} = updatedInvestment;
+  const sql = `
+    UPDATE investment
+    SET year     = $1,
+        type1    = $2,
+        type2    = $3,
+        target   = $4,
+        price    = $5,
+        currency = $6
+    WHERE id = $7 RETURNING *;
+  `;
+  const params = [year, type1, type2, target, price, currency, investmentId];
+  const result = await dbHelper.updateOrDelete(sql, params);
+  return responseHelper.createResponse('0', 200, "OK", result, null);
 
-  return {
-    statusCode: 200,
-    body: JSON.stringify({ message: "Investment Updated", data: updatedInvestment }),
-  };
 };
 
 // DELETE 请求处理（删除投资数据）
-const handleDeleteRequest = (path) => {
+const handleDeleteRequest = async (path) => {
   console.log("DELETE Request for Path: ", path);
-
   const idMatch = path.match(/^\/investment\/(\d+)$/);
   if (!idMatch) {
-    return { statusCode: 400, body: JSON.stringify({ message: "Invalid DELETE Path" }) };
+    return responseHelper.createResponse('1', 400, "Invalid DELETE Path", null, null);
   }
+  const investmentId = parseInt(idMatch[1]); // 提取 ID
+  console.log(`Deleting Investment with ID ${investmentId}`);
 
-  console.log(`Deleting Investment with ID ${idMatch[1]}`);
-  return { statusCode: 204 }; // 204 表示成功但无内容
+
+  const result = await dbHelper.updateOrDelete("DELETE FROM investment WHERE id = $1", [investmentId]);
+  return responseHelper.createResponse('0', 204, "OK", null, null);
 };
+
+
+
+
+
+
 
