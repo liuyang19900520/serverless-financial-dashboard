@@ -9,8 +9,14 @@
  */
 const createResponse = (status, code, message, data = null, error = null) => {
   return {
-    statusCode: 405,
+    statusCode: code,
     body: JSON.stringify({status: status, message: message, data: data, error: error}),
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Credentials": true,
+      "Access-Control-Allow-Methods": "POST,GET,OPTIONS,DELETE,PUT,PATCH",
+      "Access-Control-Allow-Headers": "Content-Type,X-CSRF-TOKEN",
+    }
   };
 };
 

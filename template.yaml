@@ -10,6 +10,17 @@ Globals:
     Timeout: 3
 
 Resources:
+  InvestmentApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: InvestmentApi
+      StageName: Prod
+      Cors:
+        AllowOrigin: "'http://192.168.31.194:3000'"
+        AllowCredentials: true
+        AllowMethods: "'POST,GET,DELETE,PUT,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-CSRF-TOKEN'"
+
   InvestmentFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -22,33 +33,38 @@ Resources:
         GetAllInvestments:
           Type: Api
           Properties:
+            RestApiId: !Ref InvestmentApi  # 引用共享的 API
             Path: /investment
             Method: get
         GetInvestmentById:
           Type: Api
           Properties:
+            RestApiId: !Ref InvestmentApi
             Path: /investment/{id}
             Method: get
         CreateInvestment:
           Type: Api
           Properties:
+            RestApiId: !Ref InvestmentApi
             Path: /investment
             Method: post
         UpdateInvestmentById:
           Type: Api
           Properties:
+            RestApiId: !Ref InvestmentApi
             Path: /investment/{id}
             Method: put
         DeleteInvestmentById:
           Type: Api
           Properties:
+            RestApiId: !Ref InvestmentApi
             Path: /investment/{id}
             Method: delete
 
 Outputs:
   InvestmentApi:
     Description: "API Gateway endpoint URL for investment-related operations"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/investment/"
+    Value: !Sub "https://${InvestmentApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/investment/"
   InvestmentFunction:
     Description: "Lambda Function ARN for investment-related operations"
     Value: !GetAtt InvestmentFunction.Arn

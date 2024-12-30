@@ -124,11 +124,11 @@ const handlePostRequest = async (body) => {
   console.log("New Investment Added: ", newInvestment);
 
   const sql = `
-    INSERT INTO investment (year, type1, type2, target, price, currency)
-    VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;`;
+    INSERT INTO investment (year, type1, type2, target, price, currency, owner, account)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *;`;
 
-  const {year, type1, type2, target, price, currency} = newInvestment;
-  const params = [year, type1, type2, target, price, currency];
+  const {year, type1, type2, target, price, currency, account, owner} = newInvestment;
+  const params = [year, type1, type2, target, price, currency, owner, account];
   const result = await dbHelper.insert(sql, params);
 
   console.log("New Investment Inserted: ", result);
@@ -139,14 +139,14 @@ const handlePostRequest = async (body) => {
 // PUT 请求处理（更新投资数据）
 const handlePutRequest = async (path, body) => {
   console.log("PUT Request for Path: ", path, " and Body: ", body);
-
   const idMatch = path.match(/^\/investment\/(\d+)$/);
   if (!idMatch) {
     return responseHelper.createResponse('1', 400, "Invalid PUT Path", null, null);
   }
 
+  const investmentId = parseInt(idMatch[1]); // 提取 ID
   const updatedInvestment = JSON.parse(body); // 将 JSON 反序列化为对象
-  const {year, type1, type2, target, price, currency} = updatedInvestment;
+  const {year, type1, type2, target, price, currency, account, owner} = updatedInvestment;
   const sql = `
     UPDATE investment
     SET year     = $1,
@@ -154,10 +154,12 @@ const handlePutRequest = async (path, body) => {
         type2    = $3,
         target   = $4,
         price    = $5,
-        currency = $6
-    WHERE id = $7 RETURNING *;
+        currency = $6,
+        account  = $7,
+        owner    = $8
+    WHERE id = $9 RETURNING *;
   `;
-  const params = [year, type1, type2, target, price, currency, investmentId];
+  const params = [year, type1, type2, target, price, currency, account, owner, investmentId];
   const result = await dbHelper.updateOrDelete(sql, params);
   return responseHelper.createResponse('0', 200, "OK", result, null);
 
