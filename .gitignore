@@ -1,4 +1,3 @@
-
 # Created by https://www.toptal.com/developers/gitignore/api/osx,node,linux,windows,sam
 # Edit at https://www.toptal.com/developers/gitignore?templates=osx,node,linux,windows,sam
 
@@ -95,6 +94,19 @@ typings/
 .env
 .env.test
 .env*.local
+.env.development
+.env.production
+
+# Local development environment files
+**/local-env.json
+**/prod-env.json
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
@@ -150,7 +162,8 @@ temp/
 .LSOverride
 
 # Icon must end with two \r
-Icon
+Icon
+
 
 # Thumbnails
 ._*
@@ -177,6 +190,7 @@ Temporary Items
 # Docs: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-reference.html
 
 **/.aws-sam
+.aws-sam/
 
 ### Windows ###
 # Windows thumbnail cache files

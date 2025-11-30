@@ -41,6 +41,13 @@ sam build
 sam deploy --guided
 ```
 
+> **DynamoDB table**  
+> When deploying, provide the existing DynamoDB table name that holds the `investment` items. Pass it through the new `InvestmentTableName` parameter, for example:
+> ```
+> sam deploy --guided --parameter-overrides InvestmentTableName=your-table-name
+> ```
+> The Lambda function automatically receives this value via the `INVESTMENT_TABLE_NAME` environment variable.
+
 The first command will build the source of your application. The second command will package and deploy your application to AWS, with a series of prompts:
 
 * **Stack Name**: The name of the stack to deploy to CloudFormation. This should be unique to your account and region, and a good starting point would be something matching your project name.

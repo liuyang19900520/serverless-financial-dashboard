@@ -5,6 +5,12 @@ Description: >
 
   Sample SAM Template for serverless-financial-dashboard
 
+Parameters:
+  InvestmentTableName:
+    Type: String
+    Description: Name of the DynamoDB table that stores investments.
+    Default: investment
+
 Globals:
   Function:
     Timeout: 3
@@ -29,6 +35,12 @@ Resources:
       Runtime: nodejs20.x
       Architectures:
         - x86_64
+      Environment:
+        Variables:
+          INVESTMENT_TABLE_NAME: !Ref InvestmentTableName
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InvestmentTableName
       Events:
         GetAllInvestments:
           Type: Api
