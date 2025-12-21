@@ -1,7 +1,8 @@
-# More information about the configuration file can be found here:
+# SAM CLI Configuration
 # https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-config.html
 version = 0.1
 
+# Default configuration (Production)
 [default.global.parameters]
 stack_name = "serverless-financial-dashboard"
 
@@ -17,17 +18,35 @@ capabilities = "CAPABILITY_IAM"
 confirm_changeset = true
 resolve_s3 = true
 parameter_overrides = [
-  "InvestmentTableName=investment"
+  "InvestmentTableName=investment",
+  "Environment=prod"
 ]
 
 [default.package.parameters]
 resolve_s3 = true
 
-[default.sync.parameters]
-watch = true
+# Local development configuration
+[local.global.parameters]
+stack_name = "serverless-financial-dashboard-local"
 
-[default.local_start_api.parameters]
-warm_containers = "EAGER"
+[local.build.parameters]
+cached = true
+parallel = true
 
-[default.local_start_lambda.parameters]
+[local.local_start_api.parameters]
 warm_containers = "EAGER"
+env_vars = "src/local-env.json"
+
+[local.local_start_lambda.parameters]
+warm_containers = "EAGER"
+env_vars = "src/local-env.json"
+
+# Development environment
+[dev.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+resolve_s3 = true
+parameter_overrides = [
+  "InvestmentTableName=investment-dev",
+  "Environment=dev"
+]

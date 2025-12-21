@@ -1,0 +1,23 @@
+{
+  "name": "serverless-financial-dashboard",
+  "version": "1.0.0",
+  "description": "Serverless financial dashboard API using AWS Lambda and DynamoDB",
+  "type": "module",
+  "main": "handlers/investment.ts",
+  "scripts": {
+    "build": "esbuild handlers/investment.ts --bundle --platform=node --target=node20 --format=esm --outfile=handlers/investment.js --external:@aws-sdk/* --minify --sourcemap",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.687.0",
+    "@aws-sdk/lib-dynamodb": "^3.687.0"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.159",
+    "@types/node": "^25.0.3",
+    "esbuild": "^0.27.2",
+    "typescript": "^5.9.3"
+  }
+}

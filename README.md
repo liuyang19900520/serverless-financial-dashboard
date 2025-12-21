@@ -1,134 +1,209 @@
-# serverless-financial-dashboard
+# Serverless Financial Dashboard
 
-This project contains source code and supporting files for a serverless application that you can deploy with the SAM CLI. It includes the following files and folders.
+Production-ready serverless API for investment management using AWS Lambda, API Gateway, and DynamoDB.
 
-- hello-world - Code for the application's Lambda function.
-- events - Invocation events that you can use to invoke the function.
-- hello-world/tests - Unit tests for the application code.
-- template.yaml - A template that defines the application's AWS resources.
+## Prerequisites
 
-The application uses several AWS resources, including Lambda functions and an API Gateway API. These resources are defined in the `template.yaml` file in this project. You can update the template to add AWS resources through the same deployment process that updates your application code.
+- **Docker Desktop** - Must be running for local development
+- **AWS CLI** - Configured with credentials (`aws configure`)
+- **SAM CLI** - Version 1.148.0 or higher ([Installation Guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html))
+- **Node.js** - Version 20.x or higher
 
-If you prefer to use an integrated development environment (IDE) to build and test your application, you can use the AWS Toolkit.
-The AWS Toolkit is an open source plug-in for popular IDEs that uses the SAM CLI to build and deploy serverless applications on AWS. The AWS Toolkit also adds a simplified step-through debugging experience for Lambda function code. See the following links to get started.
+## Project Structure
 
-* [CLion](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [GoLand](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [IntelliJ](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [WebStorm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [Rider](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [PhpStorm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [PyCharm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [RubyMine](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [DataGrip](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [VS Code](https://docs.aws.amazon.com/toolkit-for-vscode/latest/userguide/welcome.html)
-* [Visual Studio](https://docs.aws.amazon.com/toolkit-for-visual-studio/latest/user-guide/welcome.html)
+```
+serverless-financial-dashboard/
+├── src/
+│   ├── handlers/          # Lambda entry points (thin handlers)
+│   │   └── investment.ts
+│   ├── services/          # Business logic layer
+│   │   └── investmentService.ts
+│   ├── utils/             # Shared utilities
+│   │   ├── dynamoClient.ts      # DynamoDB client (initialized outside handler)
+│   │   ├── investmentRepository.ts  # Data access layer
+│   │   ├── responseHelper.ts    # API response formatting
+│   │   └── validators.ts         # Input validation
+│   ├── package.json
+│   └── local-env.json     # Local development environment variables
+├── events/                 # Sample events for testing
+├── template.yaml           # SAM/CloudFormation template
+├── samconfig.toml         # SAM CLI configuration
+└── README.md
+```
 
-## Deploy the sample application
+## Architecture
 
-The Serverless Application Model Command Line Interface (SAM CLI) is an extension of the AWS CLI that adds functionality for building and testing Lambda applications. It uses Docker to run your functions in an Amazon Linux environment that matches Lambda. It can also emulate your application's build environment and API.
+This project follows the **Thin Handler Pattern**:
 
-To use the SAM CLI, you need the following tools.
+- **Handlers** (`src/handlers/`): Thin Lambda entry points that delegate to services
+- **Services** (`src/services/`): Business logic and orchestration
+- **Repository** (`src/utils/investmentRepository.ts`): Data access layer
+- **Utils**: Shared utilities (DynamoDB client, validators, response helpers)
 
-* SAM CLI - [Install the SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html)
-* Node.js - [Install Node.js 20](https://nodejs.org/en/), including the NPM package management tool.
-* Docker - [Install Docker community edition](https://hub.docker.com/search/?type=edition&offering=community)
+### Key Features
 
-To build and deploy your application for the first time, run the following in your shell:
+- ✅ **Dependency Injection**: AWS SDK clients initialized outside handlers for execution context reuse
+- ✅ **AWS SDK v3**: Modular imports to reduce cold start times
+- ✅ **Separation of Concerns**: Clear separation between handlers, services, and data access
+- ✅ **Error Handling**: Proper try/catch with structured error responses
+- ✅ **Least Privilege IAM**: Scoped DynamoDB permissions only
+
+## Local Development
+
+### 1. Build the project
+
+The project uses TypeScript and esbuild for compilation. The build process:
+- Compiles TypeScript files to JavaScript using esbuild
+- Bundles dependencies (excluding AWS SDK for smaller bundle size)
+- Minifies output for production
+
+```bash
+# Build TypeScript files (runs automatically during sam build)
+cd src && npm run build
+
+# Build SAM application
+cd .. && sam build
+```
+
+### 2. Start local API server
+
+```bash
+sam local start-api --env-vars src/local-env.json
+```
+
+The API will be available at `http://127.0.0.1:3000`
+
+### 3. Test the API
+
+```bash
+# Get all investments
+curl http://127.0.0.1:3000/investment
+
+# Query by year
+curl "http://127.0.0.1:3000/investment?year=2024"
+
+# Get specific investment
+curl http://127.0.0.1:3000/investment/47
+
+# Create investment
+curl -X POST http://127.0.0.1:3000/investment \
+  -H "Content-Type: application/json" \
+  -d '{
+    "target": "ETF",
+    "type1": "股票",
+    "type2": "美股",
+    "year": "2025",
+    "price": 1000,
+    "currency": "USD",
+    "account": "测试账户",
+    "owner": "测试用户"
+  }'
+```
+
+### Environment Configuration
+
+Edit `src/local-env.json` to configure:
+- `INVESTMENT_TABLE_NAME`: Your DynamoDB table name
+- `AWS_REGION`: AWS region where your table is located
+
+## Production Deployment
+
+### 1. Build
 
 ```bash
 sam build
+```
+
+### 2. Deploy
+
+```bash
+# First-time deployment (guided)
 sam deploy --guided
+
+# Subsequent deployments
+sam deploy
 ```
 
-> **DynamoDB table**  
-> When deploying, provide the existing DynamoDB table name that holds the `investment` items. Pass it through the new `InvestmentTableName` parameter, for example:
-> ```
-> sam deploy --guided --parameter-overrides InvestmentTableName=your-table-name
-> ```
-> The Lambda function automatically receives this value via the `INVESTMENT_TABLE_NAME` environment variable.
-
-The first command will build the source of your application. The second command will package and deploy your application to AWS, with a series of prompts:
-
-* **Stack Name**: The name of the stack to deploy to CloudFormation. This should be unique to your account and region, and a good starting point would be something matching your project name.
-* **AWS Region**: The AWS region you want to deploy your app to.
-* **Confirm changes before deploy**: If set to yes, any change sets will be shown to you before execution for manual review. If set to no, the AWS SAM CLI will automatically deploy application changes.
-* **Allow SAM CLI IAM role creation**: Many AWS SAM templates, including this example, create AWS IAM roles required for the AWS Lambda function(s) included to access AWS services. By default, these are scoped down to minimum required permissions. To deploy an AWS CloudFormation stack which creates or modifies IAM roles, the `CAPABILITY_IAM` value for `capabilities` must be provided. If permission isn't provided through this prompt, to deploy this example you must explicitly pass `--capabilities CAPABILITY_IAM` to the `sam deploy` command.
-* **Save arguments to samconfig.toml**: If set to yes, your choices will be saved to a configuration file inside the project, so that in the future you can just re-run `sam deploy` without parameters to deploy changes to your application.
-
-You can find your API Gateway Endpoint URL in the output values displayed after deployment.
-
-## Use the SAM CLI to build and test locally
-
-Build your application with the `sam build` command.
+### 3. Deploy to specific environment
 
 ```bash
-serverless-financial-dashboard$ sam build
+# Development environment
+sam deploy --config-env dev
+
+# Production environment (default)
+sam deploy --config-env default
 ```
 
-The SAM CLI installs dependencies defined in `hello-world/package.json`, creates a deployment package, and saves it in the `.aws-sam/build` folder.
+### Configuration
 
-Test a single function by invoking it directly with a test event. An event is a JSON document that represents the input that the function receives from the event source. Test events are included in the `events` folder in this project.
+The `samconfig.toml` file contains environment-specific configurations:
+- **default**: Production environment
+- **dev**: Development environment
+- **local**: Local development settings
 
-Run functions locally and invoke them with the `sam local invoke` command.
+### Parameters
 
+- `InvestmentTableName`: DynamoDB table name (default: `investment`)
+- `Environment`: Deployment environment - `dev` or `prod` (default: `prod`)
+
+## API Endpoints
+
+- `GET /investment` - List all investments (supports query parameters)
+- `GET /investment/{id}` - Get investment by ID
+- `POST /investment` - Create new investment
+- `PUT /investment/{id}` - Update investment
+- `DELETE /investment/{id}` - Delete investment
+
+### Query Parameters
+
+All fields support filtering:
+- `year`, `owner`, `currency`, `type1`, `type2`, `target`, `account`, `price`, `id`
+- Multiple filters: `?year=2024&owner=李娇&currency=JPY`
+- Sorting: `?sort_by=price` (ascending) or `?sort_by=-price` (descending)
+
+## Infrastructure
+
+### Resources Created
+
+- **API Gateway**: RESTful API endpoint
+- **Lambda Function**: Serverless compute
+- **IAM Role**: Least privilege DynamoDB access
+
+### IAM Permissions
+
+The Lambda function has scoped permissions:
+- `dynamodb:GetItem`
+- `dynamodb:PutItem`
+- `dynamodb:UpdateItem`
+- `dynamodb:DeleteItem`
+- `dynamodb:Scan`
+- `dynamodb:Query`
+
+Only for the specified DynamoDB table.
+
+## Troubleshooting
+
+### Docker Issues
+
+If you see "Docker is not reachable":
+1. Ensure Docker Desktop is running
+2. Run `docker ps` to verify
+3. Upgrade SAM CLI: `brew upgrade aws-sam-cli`
+
+### Build Directory Not Found
+
+If you see "no such file or directory" for `.aws-sam/build`:
 ```bash
-serverless-financial-dashboard$ sam local invoke HelloWorldFunction --event events/event.json
+sam build
 ```
 
-The SAM CLI can also emulate your application's API. Use the `sam local start-api` to run the API locally on port 3000.
+### AWS Credentials
 
+Ensure AWS credentials are configured:
 ```bash
-serverless-financial-dashboard$ sam local start-api
-serverless-financial-dashboard$ curl http://localhost:3000/
+aws configure
 ```
 
-The SAM CLI reads the application template to determine the API's routes and the functions that they invoke. The `Events` property on each function's definition includes the route and method for each path.
+## License
 
-```yaml
-      Events:
-        HelloWorld:
-          Type: Api
-          Properties:
-            Path: /hello
-            Method: get
-```
-
-## Add a resource to your application
-The application template uses AWS Serverless Application Model (AWS SAM) to define application resources. AWS SAM is an extension of AWS CloudFormation with a simpler syntax for configuring common serverless application resources such as functions, triggers, and APIs. For resources not included in [the SAM specification](https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md), you can use standard [AWS CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-template-resource-type-ref.html) resource types.
-
-## Fetch, tail, and filter Lambda function logs
-
-To simplify troubleshooting, SAM CLI has a command called `sam logs`. `sam logs` lets you fetch logs generated by your deployed Lambda function from the command line. In addition to printing the logs on the terminal, this command has several nifty features to help you quickly find the bug.
-
-`NOTE`: This command works for all AWS Lambda functions; not just the ones you deploy using SAM.
-
-```bash
-serverless-financial-dashboard$ sam logs -n HelloWorldFunction --stack-name serverless-financial-dashboard --tail
-```
-
-You can find more information and examples about filtering Lambda function logs in the [SAM CLI Documentation](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-logging.html).
-
-## Unit tests
-
-Tests are defined in the `hello-world/tests` folder in this project. Use NPM to install the [Mocha test framework](https://mochajs.org/) and run unit tests.
-
-```bash
-serverless-financial-dashboard$ cd investment
-investment$ npm install
-investment$ npm run test
-```
-
-## Cleanup
-
-To delete the sample application that you created, use the AWS CLI. Assuming you used your project name for the stack name, you can run the following:
-
-```bash
-sam delete --stack-name serverless-financial-dashboard
-```
-
-## Resources
-
-See the [AWS SAM developer guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/what-is-sam.html) for an introduction to SAM specification, the SAM CLI, and serverless application concepts.
-
-Next, you can use AWS Serverless Application Repository to deploy ready to use Apps that go beyond hello world samples and learn how authors developed their applications: [AWS Serverless Application Repository main page](https://aws.amazon.com/serverless/serverlessrepo/)
+MIT

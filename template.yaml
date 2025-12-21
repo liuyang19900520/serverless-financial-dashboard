@@ -2,42 +2,55 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
   serverless-financial-dashboard
-
-  Sample SAM Template for serverless-financial-dashboard
+  
+  Production-ready serverless API for investment management using AWS Lambda and DynamoDB
 
 Parameters:
   InvestmentTableName:
     Type: String
-    Description: Name of the DynamoDB table that stores investments.
+    Description: Name of the DynamoDB table that stores investments
     Default: investment
+  
+  Environment:
+    Type: String
+    Description: Deployment environment (dev, prod)
+    Default: prod
+    AllowedValues:
+      - dev
+      - prod
+
+Conditions:
+  IsProd: !Equals [!Ref Environment, prod]
 
 Globals:
   Function:
-    Timeout: 3
+    Runtime: nodejs20.x
+    Timeout: 30
+    MemorySize: 256
+    Architectures:
+      - x86_64
+    Environment:
+      Variables:
+        INVESTMENT_TABLE_NAME: !Ref InvestmentTableName
+        ENVIRONMENT: !Ref Environment
 
 Resources:
   InvestmentApi:
     Type: AWS::Serverless::Api
     Properties:
       Name: InvestmentApi
-      StageName: Prod
+      StageName: !If [IsProd, Prod, !Ref Environment]
       Cors:
-        AllowOrigin: "'http://192.168.31.194:3000'"
-        AllowCredentials: true
+        AllowOrigin: "'*'"
+        AllowCredentials: false
         AllowMethods: "'POST,GET,DELETE,PUT,OPTIONS'"
         AllowHeaders: "'Content-Type,X-CSRF-TOKEN'"
 
   InvestmentFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: investment/
-      Handler: app.lambdaHandler
-      Runtime: nodejs20.x
-      Architectures:
-        - x86_64
-      Environment:
-        Variables:
-          INVESTMENT_TABLE_NAME: !Ref InvestmentTableName
+      CodeUri: src/
+      Handler: handlers/investment.lambdaHandler
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref InvestmentTableName
@@ -45,7 +58,7 @@ Resources:
         GetAllInvestments:
           Type: Api
           Properties:
-            RestApiId: !Ref InvestmentApi  # 引用共享的 API
+            RestApiId: !Ref InvestmentApi
             Path: /investment
             Method: get
         GetInvestmentById:
@@ -74,12 +87,14 @@ Resources:
             Method: delete
 
 Outputs:
-  InvestmentApi:
-    Description: "API Gateway endpoint URL for investment-related operations"
-    Value: !Sub "https://${InvestmentApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/investment/"
-  InvestmentFunction:
-    Description: "Lambda Function ARN for investment-related operations"
+  InvestmentApiUrl:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${InvestmentApi}.execute-api.${AWS::Region}.amazonaws.com/${InvestmentApi.Stage}/investment/"
+    Export:
+      Name: !Sub "${AWS::StackName}-ApiUrl"
+  
+  InvestmentFunctionArn:
+    Description: "Lambda Function ARN"
     Value: !GetAtt InvestmentFunction.Arn
-  InvestmentFunctionIamRole:
-    Description: "Implicit IAM Role created for InvestmentFunction"
-    Value: !GetAtt InvestmentFunctionRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-FunctionArn"
